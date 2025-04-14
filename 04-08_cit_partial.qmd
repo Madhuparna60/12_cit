@@ -305,8 +305,16 @@ In the algorithm below, we are asking for 50 iterations.
 
 ```{r cit_grid_result}
 set.seed(76544)
-cit_grid_result 
+cit_grid_result <- tune_sim_anneal(
+  object = cit_spec,
+  preprocessor = weather_recipe,
+  resamples = resampling_foldcv,
+  param_info = cit_param,
+  iter = 50
+)
 
+beepr::beep()
+cit_grid_result$.metrics[[2]]
 ```
 Notice how we have a column for iterations.  
 The first iteration uses a sensible value for the hyper-parameters, and then starts "walking" the parameter space in the direction of greatest improvement.  
@@ -355,7 +363,12 @@ cit_grid_result %>%
 
 ```{r}
 # Based on lowest RMSE
-best_rmse <- cit_grid_result 
+best_rmse <- cit_grid_result  %>%
+ select_by_one_std_err("tree_depth",
+                       metric = "rmse"
+                       ) 
+
+  
 
 best_rmse
 
@@ -363,7 +376,10 @@ best_rmse
 
 ```{r}
 # Based on greatest R2
-best_r2 <- cit_grid_result 
+best_r2 <- cit_grid_result %>%
+  select_by_one_std_err("tree_depth",
+                        metric = "rsq"
+                        )
 
 best_r2
 
@@ -385,6 +401,7 @@ final_spec <- decision_tree(tree_depth = best_r2$tree_depth) %>%
              conditional_min_criterion = best_r2$conditional_min_criterion) %>%
   # Specifying mode  
   set_mode("regression")
+
   
 
 final_spec
@@ -402,7 +419,9 @@ These 2 steps can be completed in one function, as below:
 ```{r final_fit}
 final_fit <- last_fit(final_spec,
                 weather_recipe,
-                split = weather_split)
+                split = weather_split) 
+
+
 
 final_fit %>%
   collect_predictions()
@@ -477,7 +496,10 @@ final_spec %>%
 Tree:  
 
 ```{r}
-
+final_spec %>%
+  fit(strength_gtex ~ .,
+      data = bake(weather_prep, weather)
+        )
   
 ```
 
